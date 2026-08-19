@@ -26,14 +26,18 @@
                         <td class="px-4 py-3">{{ $s->capture_date->format('d.m.Y') }}</td>
                         <td class="px-4 py-3">
                             <span class="rounded-full px-2 py-0.5 text-xs
-                                {{ $s->status === 'ready' ? 'bg-emerald-100 text-emerald-800' : ($s->status === 'failed' ? 'bg-red-100 text-red-800' : 'bg-stone-100 text-stone-700') }}">
-                                {{ $s->status }}
+                                {{ $s->status === 'ready' ? 'bg-emerald-100 text-emerald-800' : ($s->status === 'failed' ? 'bg-red-100 text-red-800' : ($s->status === 'draft' ? 'bg-sky-100 text-sky-800' : 'bg-stone-100 text-stone-700')) }}">
+                                {{ $s->status === 'draft' ? 'Aufnahme läuft' : $s->status }}
                             </span>
                         </td>
                         <td class="px-4 py-3">{{ $s->photos_count }}</td>
                         <td class="px-4 py-3">{{ $s->detected_tables_count }}</td>
                         <td class="px-4 py-3 text-right">
-                            <a href="{{ route('photo-sessions.show', $s) }}" class="text-amber-800 hover:underline">Öffnen</a>
+                            @if ($s->status === 'draft')
+                                <a href="{{ route('photo-sessions.camera.continue', $s) }}" class="text-amber-800 hover:underline">Weiter aufnehmen</a>
+                            @else
+                                <a href="{{ route('photo-sessions.show', $s) }}" class="text-amber-800 hover:underline">Öffnen</a>
+                            @endif
                         </td>
                     </tr>
                 @empty

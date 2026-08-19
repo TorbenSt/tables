@@ -12,6 +12,9 @@ class PhotoSession extends Model
         'venue_id',
         'title',
         'capture_date',
+        'viewpoint_latitude',
+        'viewpoint_longitude',
+        'viewpoint_bearing',
         'status',
         'error_message',
         'analysis_raw',
@@ -21,8 +24,16 @@ class PhotoSession extends Model
     {
         return [
             'capture_date' => 'date',
+            'viewpoint_latitude' => 'float',
+            'viewpoint_longitude' => 'float',
+            'viewpoint_bearing' => 'float',
             'analysis_raw' => 'array',
         ];
+    }
+
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
     }
 
     public function venue(): BelongsTo

@@ -21,6 +21,12 @@ class PhotoSessionShow extends Component
 
     public function mount(PhotoSession $session): void
     {
+        if ($session->status === 'draft') {
+            $this->redirect(route('photo-sessions.camera.continue', $session), navigate: true);
+
+            return;
+        }
+
         $this->session = $session->load(['photos', 'detectedTables.photo', 'venue']);
         $this->selectedTableId = $session->detectedTables->first()?->id;
         $this->forecastDate = now()->format('Y-m-15');

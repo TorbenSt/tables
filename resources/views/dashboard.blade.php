@@ -35,7 +35,7 @@
             <p class="text-xs font-medium uppercase tracking-wider text-sky-700">Model 2</p>
             <h2 class="mt-1 text-xl font-semibold">Tisch-Sonnenerkennung</h2>
             <p class="mt-2 text-sm text-stone-600">
-                Mindestens 3 Fotos vom gleichen Tag mit Uhrzeit, GPS und Blickrichtung.
+                Mindestens 3 Fotos vom gleichen Spot, gleiche Blickrichtung, unterschiedliche Uhrzeiten.
                 Grok Vision markiert Außentische; Sonnenstand-Heuristik prognostiziert Sonne/Schatten über das Jahr.
             </p>
             <div class="mt-4 flex flex-wrap gap-2">

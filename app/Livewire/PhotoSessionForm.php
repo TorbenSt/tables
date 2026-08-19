@@ -24,6 +24,15 @@ class PhotoSessionForm extends Component
 
     public ?int $venue_id = null;
 
+    public string $sharedLatitude = '';
+
+    public string $sharedLongitude = '';
+
+    public string $sharedBearing = '';
+
+    /** shared = ein Standpunkt für alle, per_photo = je Foto überschreibbar */
+    public string $viewpointMode = 'shared';
+
     /** @var array<int, mixed> */
     public array $photos = [];
 
@@ -34,8 +43,11 @@ class PhotoSessionForm extends Component
 
     public function mount(): void
     {
+        $venue = Venue::query()->first();
         $this->capture_date = now()->toDateString();
-        $this->venue_id = Venue::query()->value('id');
+        $this->venue_id = $venue?->id;
+        $this->sharedLatitude = (string) ($venue?->latitude ?? '52.520008');
+        $this->sharedLongitude = (string) ($venue?->longitude ?? '13.404954');
         $this->addPhotoSlot();
         $this->addPhotoSlot();
         $this->addPhotoSlot();
@@ -44,16 +56,27 @@ class PhotoSessionForm extends Component
     public function addPhotoSlot(): void
     {
         $this->photos[] = null;
-        $defaultLat = Venue::query()->value('latitude') ?? '52.520008';
-        $defaultLng = Venue::query()->value('longitude') ?? '13.404954';
         $this->meta[] = [
-            'time' => now()->addMinutes(count($this->meta) * 45)->format('H:i'),
-            'latitude' => (string) $defaultLat,
-            'longitude' => (string) $defaultLng,
-            'bearing' => '',
+            'time' => now()->addMinutes(count($this->meta) * 90)->format('H:i'),
+            'latitude' => $this->sharedLatitude,
+            'longitude' => $this->sharedLongitude,
+            'bearing' => $this->sharedBearing,
             'umbrella_hint' => false,
             'source' => '',
         ];
+    }
+
+    public function updatedViewpointMode(): void
+    {
+        if ($this->viewpointMode !== 'per_photo') {
+            return;
+        }
+
+        foreach ($this->meta as $i => $_) {
+            $this->meta[$i]['latitude'] = $this->sharedLatitude;
+            $this->meta[$i]['longitude'] = $this->sharedLongitude;
+            $this->meta[$i]['bearing'] = $this->sharedBearing;
+        }
     }
 
     public function updatedPhotos(mixed $value, mixed $key): void
@@ -64,42 +87,33 @@ class PhotoSessionForm extends Component
             return;
         }
 
-        if (str_starts_with((string) ($this->meta[$index]['source'] ?? ''), 'kamera')) {
-            return;
-        }
-
         $extracted = app(ExifMetaExtractor::class)->fromPath($file->getRealPath());
         if ($extracted === []) {
             return;
         }
 
-        if (isset($extracted['latitude'], $extracted['longitude'])) {
-            $this->meta[$index]['latitude'] = (string) $extracted['latitude'];
-            $this->meta[$index]['longitude'] = (string) $extracted['longitude'];
-        }
         if (isset($extracted['time'])) {
             $this->meta[$index]['time'] = $extracted['time'];
         }
         if (isset($extracted['date'])) {
             $this->capture_date = $extracted['date'];
         }
-        if (isset($extracted['bearing'])) {
-            $this->meta[$index]['bearing'] = (string) round($extracted['bearing'], 1);
+
+        if ($this->viewpointMode === 'per_photo') {
+            if (isset($extracted['latitude'], $extracted['longitude'])) {
+                $this->meta[$index]['latitude'] = (string) $extracted['latitude'];
+                $this->meta[$index]['longitude'] = (string) $extracted['longitude'];
+            }
+            if (isset($extracted['bearing'])) {
+                $this->meta[$index]['bearing'] = (string) round($extracted['bearing'], 1);
+            }
         }
 
-        $bits = [];
-        if (isset($extracted['latitude'])) {
+        $bits = ['Uhrzeit'];
+        if ($this->viewpointMode === 'per_photo' && isset($extracted['latitude'])) {
             $bits[] = 'GPS';
         }
-        if (isset($extracted['bearing'])) {
-            $bits[] = 'Richtung';
-        }
-        if (isset($extracted['time'])) {
-            $bits[] = 'Uhrzeit';
-        }
-        if ($bits !== [] && ($this->meta[$index]['source'] ?? '') !== 'kamera') {
-            $this->meta[$index]['source'] = 'EXIF: '.implode(', ', $bits);
-        }
+        $this->meta[$index]['source'] = 'EXIF: '.implode(', ', $bits);
     }
 
     public function removePhotoSlot(int $index): void
@@ -114,47 +128,64 @@ class PhotoSessionForm extends Component
 
     public function save(TablePhotoAnalyzer $analyzer): void
     {
-        $this->validate([
+        $rules = [
             'capture_date' => 'required|date',
             'title' => 'nullable|string|max:120',
             'venue_id' => 'nullable|exists:venues,id',
+            'viewpointMode' => 'required|in:shared,per_photo',
             'photos' => 'required|array|min:3',
             'photos.*' => 'required|image|max:10240',
             'meta' => 'required|array|min:3',
             'meta.*.time' => 'required|date_format:H:i',
-            'meta.*.latitude' => 'required|numeric|between:-90,90',
-            'meta.*.longitude' => 'required|numeric|between:-180,180',
-            'meta.*.bearing' => 'required|numeric|between:0,360',
             'meta.*.umbrella_hint' => 'boolean',
-            'meta.*.source' => 'nullable|string|max:80',
-        ], [
+        ];
+
+        if ($this->viewpointMode === 'shared') {
+            $rules['sharedLatitude'] = 'required|numeric|between:-90,90';
+            $rules['sharedLongitude'] = 'required|numeric|between:-180,180';
+            $rules['sharedBearing'] = 'required|numeric|between:0,360';
+        } else {
+            $rules['meta.*.latitude'] = 'required|numeric|between:-90,90';
+            $rules['meta.*.longitude'] = 'required|numeric|between:-180,180';
+            $rules['meta.*.bearing'] = 'required|numeric|between:0,360';
+        }
+
+        $this->validate($rules, [
             'photos.min' => 'Mindestens 3 Fotos erforderlich.',
             'photos.*.required' => 'Jedes Slot braucht ein Foto.',
+            'sharedBearing.required' => 'Bitte die gemeinsame Blickrichtung auf dem Kompass setzen.',
         ]);
 
         $times = collect($this->meta)->pluck('time')->unique();
         if ($times->count() < 3) {
-            $this->addError('meta', 'Die Fotos müssen unterschiedliche Uhrzeiten haben.');
+            $this->addError('meta', 'Die Fotos müssen unterschiedliche Uhrzeiten haben (idealerweise morgens, mittags, nachmittags).');
 
             return;
         }
 
         $session = PhotoSession::query()->create([
             'venue_id' => $this->venue_id,
-            'title' => $this->title ?: 'Session '.$this->capture_date,
+            'title' => $this->title ?: 'Galerie '.$this->capture_date,
             'capture_date' => $this->capture_date,
+            'viewpoint_latitude' => $this->sharedLatitude,
+            'viewpoint_longitude' => $this->sharedLongitude,
+            'viewpoint_bearing' => $this->sharedBearing !== '' ? $this->sharedBearing : null,
             'status' => 'pending',
         ]);
 
         foreach ($this->photos as $i => $upload) {
             $path = $upload->store('table-photos/'.$session->id, 'public');
+            $lat = $this->viewpointMode === 'shared' ? $this->sharedLatitude : $this->meta[$i]['latitude'];
+            $lng = $this->viewpointMode === 'shared' ? $this->sharedLongitude : $this->meta[$i]['longitude'];
+            $bearing = $this->viewpointMode === 'shared' ? $this->sharedBearing : $this->meta[$i]['bearing'];
+
             TablePhoto::query()->create([
                 'photo_session_id' => $session->id,
                 'path' => $path,
                 'captured_at' => $this->meta[$i]['time'].':00',
-                'latitude' => $this->meta[$i]['latitude'],
-                'longitude' => $this->meta[$i]['longitude'],
-                'bearing' => $this->meta[$i]['bearing'],
+                'latitude' => $lat,
+                'longitude' => $lng,
+                'bearing' => $bearing,
                 'umbrella_hint' => (bool) ($this->meta[$i]['umbrella_hint'] ?? false),
                 'sort_order' => $i,
             ]);
@@ -175,7 +206,7 @@ class PhotoSessionForm extends Component
     {
         return view('livewire.photo-session-form', [
             'venues' => Venue::query()->orderBy('name')->get(),
-            'title' => 'Tisch-Fotos hochladen',
+            'title' => 'Galerie hochladen',
         ]);
     }
 }

@@ -1,9 +1,5 @@
 /**
  * Handy-Kamera + Metadaten für Model 2.
- *
- * GPS: Geolocation API (Live-Aufnahme) oder EXIF (Galerie).
- * Blickrichtung: DeviceOrientation-Kompass im Moment der Aufnahme.
- * Native Kamera-Apps schreiben die Blickrichtung selten ins EXIF.
  */
 
 function compassHeading(event) {
@@ -252,9 +248,23 @@ function applyMeta(wire, index, meta) {
     }
 }
 
+function pad(n) {
+    return String(n).padStart(2, '0');
+}
+
+function nowStamp() {
+    const now = new Date();
+
+    return {
+        time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+        date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+        fileStamp: `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`,
+    };
+}
+
 function directionLabel(heading) {
     if (heading == null) {
-        return 'Kompass nicht verfügbar – Handy flach halten oder Richtung manuell eintragen';
+        return 'Kompass nicht verfügbar – Handy in Blickrichtung halten';
     }
     const dirs = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
     const i = Math.round(heading / 45) % 8;
@@ -263,7 +273,6 @@ function directionLabel(heading) {
 }
 
 const camera = {
-    index: 0,
     stream: null,
     heading: null,
     geo: null,
@@ -299,6 +308,10 @@ function startCompass() {
         }
         camera.heading = normalizeBearing(raw + screenAngle());
         setHeadingLabel();
+        const lockStatus = document.querySelector('[data-lock-status]');
+        if (lockStatus && camera.heading != null) {
+            lockStatus.textContent = `Kompass: ${directionLabel(camera.heading)}`;
+        }
     };
     window.addEventListener('deviceorientationabsolute', camera.orientHandler, true);
     window.addEventListener('deviceorientation', camera.orientHandler, true);
@@ -326,9 +339,31 @@ function stopCamera() {
     overlay()?.setAttribute('aria-hidden', 'true');
 }
 
-async function openCamera(wire, index) {
+async function snapshotFile() {
+    const video = overlay()?.querySelector('video');
+    if (! video?.videoWidth) {
+        throw new Error('Kamerabild noch nicht bereit.');
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (! blob) {
+        throw new Error('Aufnahme fehlgeschlagen.');
+    }
+
+    const stamp = nowStamp();
+
+    return {
+        file: new File([blob], `kamera-${stamp.fileStamp}.jpg`, { type: 'image/jpeg' }),
+        stamp,
+    };
+}
+
+async function openSessionCamera(wire) {
     camera.wire = wire;
-    camera.index = index;
     camera.heading = null;
     camera.geo = null;
     setOverlayError('');
@@ -357,63 +392,73 @@ async function openCamera(wire, index) {
         video.srcObject = camera.stream;
         await video.play();
     } catch {
-        setOverlayError('Kamera nicht verfügbar. Bitte HTTPS nutzen, Zugriff erlauben – oder Foto aus der Galerie wählen.');
+        setOverlayError('Kamera nicht verfügbar. Bitte HTTPS nutzen und Zugriff erlauben.');
         stopCompass();
     }
 }
 
-async function shoot() {
-    const video = overlay()?.querySelector('video');
-    if (! video?.videoWidth || ! camera.wire) {
-        setOverlayError('Kamerabild noch nicht bereit.');
+async function shootSession() {
+    if (! camera.wire) {
+        setOverlayError('Keine Session.');
 
         return;
     }
 
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    if (! blob) {
-        setOverlayError('Aufnahme fehlgeschlagen.');
+    let snapshot;
+    try {
+        snapshot = await snapshotFile();
+    } catch (e) {
+        setOverlayError(e.message);
 
         return;
     }
-
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const file = new File(
-        [blob],
-        `kamera-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.jpg`,
-        { type: 'image/jpeg' },
-    );
 
     const geo = camera.geo ?? await getPosition();
     const gpsHeading = geo?.heading != null && geo.heading >= 0 ? geo.heading : null;
-    const bearing = camera.heading ?? gpsHeading;
-    const meta = {
-        source: 'kamera',
-        time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
-        date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
-    };
-    if (geo) {
-        meta.latitude = geo.latitude;
-        meta.longitude = geo.longitude;
-    }
-    if (bearing != null) {
-        meta.bearing = bearing;
-    } else {
-        meta.source = 'kamera (ohne Kompass)';
-    }
-
-    applyMeta(camera.wire, camera.index, meta);
+    const heading = camera.heading ?? gpsHeading ?? '';
 
     await new Promise((resolve, reject) => {
-        camera.wire.upload(`photos.${camera.index}`, file, () => resolve(), () => reject(new Error('upload')), () => {});
+        camera.wire.upload('shot', snapshot.file, () => resolve(), () => reject(new Error('upload')), () => {});
     });
 
+    await camera.wire.storeShot(
+        geo ? String(geo.latitude) : '',
+        geo ? String(geo.longitude) : '',
+        heading === '' ? '' : String(Math.round(normalizeBearing(heading) * 10) / 10),
+        snapshot.stamp.time,
+    );
+
     stopCamera();
+}
+
+async function fillSharedGeo(wire) {
+    await requestOrientationPermission();
+    startCompass();
+    const geo = await getPosition();
+    if (geo) {
+        wire.set('sharedLatitude', String(geo.latitude));
+        wire.set('sharedLongitude', String(geo.longitude));
+    }
+    if (camera.heading != null) {
+        wire.set('sharedBearing', String(Math.round(camera.heading * 10) / 10));
+    }
+}
+
+async function fillLockFix(wire) {
+    await requestOrientationPermission();
+    startCompass();
+    const geo = await getPosition();
+    const lat = geo ? String(geo.latitude) : '';
+    const lng = geo ? String(geo.longitude) : '';
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const heading = camera.heading != null ? String(Math.round(camera.heading * 10) / 10) : '';
+    await wire.applyDeviceFix(lat, lng, heading);
+    const status = document.querySelector('[data-lock-status]');
+    if (status) {
+        status.textContent = geo
+            ? `Standort ±${Math.round(geo.accuracy || 0)} m · ${directionLabel(camera.heading)}`
+            : 'Kein GPS – Werte manuell oder Kompass prüfen.';
+    }
 }
 
 async function handleFileInput(input) {
@@ -424,31 +469,34 @@ async function handleFileInput(input) {
         return;
     }
 
-    const [exif, geo] = await Promise.all([extractFileMeta(file), getPosition()]);
+    const applyGeo = input.dataset.applyGeo === '1';
+    const [exif, geo] = await Promise.all([extractFileMeta(file), applyGeo ? getPosition() : Promise.resolve(null)]);
     const meta = { source: 'datei' };
 
-    if (exif.latitude != null) {
-        Object.assign(meta, {
-            latitude: exif.latitude,
-            longitude: exif.longitude,
-            source: 'exif',
-        });
-    } else if (geo) {
-        Object.assign(meta, {
-            latitude: geo.latitude,
-            longitude: geo.longitude,
-            source: 'standort',
-        });
-    }
     if (exif.time) {
         meta.time = exif.time;
     }
     if (exif.date) {
         meta.date = exif.date;
     }
-    if (exif.bearing != null) {
-        meta.bearing = exif.bearing;
-        meta.source += ' + richtung';
+
+    if (applyGeo) {
+        if (exif.latitude != null) {
+            Object.assign(meta, {
+                latitude: exif.latitude,
+                longitude: exif.longitude,
+                source: 'exif',
+            });
+        } else if (geo) {
+            Object.assign(meta, {
+                latitude: geo.latitude,
+                longitude: geo.longitude,
+                source: 'standort',
+            });
+        }
+        if (exif.bearing != null) {
+            meta.bearing = exif.bearing;
+        }
     }
 
     applyMeta(wire, index, meta);
@@ -456,13 +504,12 @@ async function handleFileInput(input) {
 
 function bind() {
     document.addEventListener('click', (event) => {
-        const openBtn = event.target.closest('[data-open-camera]');
-        if (openBtn) {
+        const sessionBtn = event.target.closest('[data-open-camera-session]');
+        if (sessionBtn) {
             event.preventDefault();
-            const wire = closestWire(openBtn);
-            const index = Number(openBtn.dataset.openCamera);
-            if (wire && ! Number.isNaN(index)) {
-                openCamera(wire, index);
+            const wire = closestWire(sessionBtn);
+            if (wire) {
+                openSessionCamera(wire);
             }
 
             return;
@@ -470,10 +517,32 @@ function bind() {
         if (event.target.closest('[data-camera-close]')) {
             event.preventDefault();
             stopCamera();
+
+            return;
         }
         if (event.target.closest('[data-camera-shoot]')) {
             event.preventDefault();
-            shoot();
+            shootSession();
+
+            return;
+        }
+        const sharedGeo = event.target.closest('[data-fill-shared-geo]');
+        if (sharedGeo) {
+            event.preventDefault();
+            const wire = closestWire(sharedGeo);
+            if (wire) {
+                fillSharedGeo(wire);
+            }
+
+            return;
+        }
+        const lockFix = event.target.closest('[data-lock-device-fix]');
+        if (lockFix) {
+            event.preventDefault();
+            const wire = closestWire(lockFix);
+            if (wire) {
+                fillLockFix(wire);
+            }
         }
     });
 

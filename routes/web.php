@@ -2,6 +2,7 @@
 
 use App\Livewire\DecisionCalendar;
 use App\Livewire\DecisionTimeline;
+use App\Livewire\PhotoSessionCamera;
 use App\Livewire\PhotoSessionForm;
 use App\Livewire\PhotoSessionIndex;
 use App\Livewire\PhotoSessionShow;
@@ -34,5 +35,8 @@ Route::get('/venues/{venue}/decisions', DecisionCalendar::class)->name('venues.d
 Route::get('/venues/{venue}/decisions/timeline', DecisionTimeline::class)->name('venues.timeline');
 
 Route::get('/photo-sessions', PhotoSessionIndex::class)->name('photo-sessions.index');
-Route::get('/photo-sessions/create', PhotoSessionForm::class)->name('photo-sessions.create');
+Route::view('/photo-sessions/create', 'photo-sessions.choose')->name('photo-sessions.create');
+Route::get('/photo-sessions/create/gallery', PhotoSessionForm::class)->name('photo-sessions.gallery');
+Route::get('/photo-sessions/create/camera', PhotoSessionCamera::class)->name('photo-sessions.camera');
+Route::get('/photo-sessions/{session}/camera', PhotoSessionCamera::class)->name('photo-sessions.camera.continue');
 Route::get('/photo-sessions/{session}', PhotoSessionShow::class)->name('photo-sessions.show');

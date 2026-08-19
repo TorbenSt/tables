@@ -69,13 +69,13 @@ Dann unter Timeline ein Zieldatum wählen – z. B. Außen Sonne vor einer Woc
 
 ### Model 2 – Fotos / Sonne
 
-1. **Upload** `/photo-sessions/create` – ≥3 Fotos, gleiches Datum, unterschiedliche Uhrzeiten, lat/long, Blickrichtung
-   - **Handy-Kamera** (in der App): Rückkamera, GPS + Kompass im Moment der Aufnahme
-   - **Galerie**: EXIF-GPS/Uhrzeit, falls das Bild welche hat (Blickrichtung meist nicht)
-   - Kamera braucht **HTTPS** (localhost ist ok). iOS fragt extra nach Bewegung/Kompass.
-2. Analyse startet sync (oder Queue); ohne API-Key: Demo-Bounding-Boxes
-2. Analyse startet sync (oder Queue); ohne API-Key: Demo-Bounding-Boxes
-3. **Detail** `/photo-sessions/{id}` – Overlays, stündliche Sonne/Schatten-Leiste, Jahresübersicht (Monatsmitte)
+### Model 2 – Fotos / Sonne
+
+1. **Auswahl** `/photo-sessions/create` – Galerie **oder** Handy-Kamera
+2. **Galerie** `/photo-sessions/create/gallery` – Standort + Kompass einmal für alle Fotos; optional je Foto überschreiben. Uhrzeiten aus EXIF oder manuell (müssen sich unterscheiden).
+3. **Handy-Kamera** `/photo-sessions/create/camera` – zuerst Standpunkt merken (GPS/Kompass), dann Fotos zeitlich versetzt vom gleichen Spot. Entwurf speichern und später fortsetzen unter `/photo-sessions/{id}/camera`. HTTPS nötig, iOS: Bewegung + Standort.
+4. Analyse sync oder Queue; ohne API-Key: Demo-Bounding-Boxes
+5. **Detail** `/photo-sessions/{id}` – Overlays, stündliche Sonne/Schatten-Leiste, Jahresübersicht (Monatsmitte)
 
 ## Architektur (kurz)
 

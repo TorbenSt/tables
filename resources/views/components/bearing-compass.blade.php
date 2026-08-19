@@ -1,4 +1,4 @@
-@props(['index'])
+@props(['path'])
 
 <div class="select-none">
     <p class="text-sm text-stone-600">Blickrichtung</p>
@@ -7,7 +7,7 @@
     <div
         class="mt-3 flex flex-col items-center gap-2"
         x-data="{
-            bearing: @entangle('meta.'.$index.'.bearing').live,
+            bearing: @entangle($path).live,
             dragging: false,
             get deg() {
                 const n = Number(this.bearing);
@@ -84,15 +84,14 @@
                 <text x="24" y="105" text-anchor="middle" font-size="13" font-weight="600" fill="#44403c">W</text>
 
                 <g :transform="`rotate(${deg} 100 100)`" :opacity="isSet ? 1 : 0.35">
-                    <polygon points="100,22 108,100 100,88 92,100" fill="#b45309" />
-                    <polygon points="100,178 92,100 100,112 108,100" fill="#57534e" />
+                    <polygon points="100,22 111,108 100,98 89,108" fill="#b45309" />
                     <circle cx="100" cy="100" r="7" fill="#1c1917" stroke="#fafaf9" stroke-width="2" />
                 </g>
             </svg>
         </div>
 
         <p class="text-sm font-medium tabular-nums text-stone-800" x-text="caption"></p>
-        @error("meta.$index.bearing")
+        @error($path)
             <p class="text-xs text-red-600">{{ $message }}</p>
         @enderror
     </div>
