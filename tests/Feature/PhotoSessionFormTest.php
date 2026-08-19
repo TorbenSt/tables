@@ -29,5 +29,8 @@ class PhotoSessionFormTest extends TestCase
         $response->assertSee('Handy-Kamera');
         $response->assertSee('tables-camera-overlay');
         $response->assertSee('data-open-camera', false);
+        $response->assertSee('Blickrichtung');
+        $response->assertSee('Zeiger auf die Richtung ziehen');
+        $response->assertDontSee('Blickrichtung (° von Nord)');
     }
 }

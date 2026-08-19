@@ -2,7 +2,7 @@
     <div class="mb-6">
         <h1 class="text-2xl font-semibold">Tisch-Fotos hochladen</h1>
         <p class="mt-1 text-sm text-stone-600">
-            Mindestens 3 Fotos vom gleichen Tag, unterschiedliche Uhrzeiten, mit GPS und Blickrichtung (Azimut 0–360°).
+            Mindestens 3 Fotos vom gleichen Tag, unterschiedliche Uhrzeiten, mit GPS und Blickrichtung.
         </p>
         <p class="mt-2 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
             Am Handy: <strong>Kamera</strong> öffnet die Rückkamera in der App. Standort und Blickrichtung (Kompass) werden im Moment der Aufnahme übernommen.
@@ -88,15 +88,13 @@
                             <span class="text-stone-600">Longitude</span>
                             <input type="text" wire:model="meta.{{ $i }}.longitude" class="mt-1 w-full rounded-md border-stone-300 shadow-sm" required>
                         </label>
-                        <label class="block text-sm">
-                            <span class="text-stone-600">Blickrichtung (° von Nord)</span>
-                            <input type="number" min="0" max="360" step="0.1" wire:model="meta.{{ $i }}.bearing" class="mt-1 w-full rounded-md border-stone-300 shadow-sm" required>
-                            @error("meta.$i.bearing") <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                        </label>
-                        <label class="mt-6 flex items-center gap-2 text-sm">
+                        <label class="flex items-center gap-2 text-sm md:col-span-2 lg:col-span-3">
                             <input type="checkbox" wire:model="meta.{{ $i }}.umbrella_hint" class="rounded border-stone-300">
                             Schirm sichtbar (Hinweis)
                         </label>
+                        <div class="md:col-span-2 lg:col-span-3">
+                            <x-bearing-compass :index="$i" />
+                        </div>
                     </div>
                 </div>
             @endforeach
