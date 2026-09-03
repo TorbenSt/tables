@@ -16,23 +16,28 @@
     </div>
 
     <div class="grid gap-6 lg:grid-cols-2">
-        @foreach ($session->photos as $photo)
+        @foreach ($session->photos as $photoIndex => $photo)
             <div class="rounded-xl border border-stone-200 bg-white p-4 shadow-sm" wire:key="photo-{{ $photo->id }}">
                 <div class="mb-2 flex flex-wrap justify-between gap-2 text-xs text-stone-500">
-                    <span>{{ \Illuminate\Support\Str::of($photo->captured_at)->substr(0, 5) }} Uhr · Blick {{ $photo->bearing }}°</span>
+                    <span>Foto {{ $photoIndex + 1 }} · {{ $photo->capturedAtHm() }} Uhr · Blick {{ $photo->bearing }}°</span>
                     <span>{{ $photo->latitude }}, {{ $photo->longitude }}</span>
                 </div>
                 <div class="relative overflow-hidden rounded-lg bg-stone-100">
                     <img src="{{ $photo->url() }}" alt="Tischfoto" class="block w-full">
-                    @foreach ($session->detectedTables->where('table_photo_id', $photo->id) as $dt)
+                    @foreach ($tables as $dt)
+                        @php($obs = $dt->observationOnPhoto($photo->id))
+                        @continue(! $obs)
+                        @php($color = $dt->color_hex ?: '#2563eb')
                         <button
                             type="button"
                             wire:click="selectTable({{ $dt->id }})"
-                            class="absolute border-2 {{ $selectedTableId === $dt->id ? 'border-amber-500 bg-amber-400/20' : 'border-sky-500 bg-sky-400/15' }}"
-                            style="left: {{ $dt->bbox_x }}%; top: {{ $dt->bbox_y }}%; width: {{ $dt->bbox_w }}%; height: {{ $dt->bbox_h }}%;"
-                            title="{{ $dt->label }}"
+                            class="absolute border-2"
+                            style="left: {{ $obs->bbox_x }}%; top: {{ $obs->bbox_y }}%; width: {{ $obs->bbox_w }}%; height: {{ $obs->bbox_h }}%; border-color: {{ $color }}; background-color: {{ $color }}{{ $selectedTableId === $dt->id ? '55' : '22' }};"
+                            title="{{ $dt->displayLabel() }}"
+                            data-stable-key="{{ $dt->stable_key }}"
+                            data-color-hex="{{ $color }}"
                         >
-                            <span class="absolute -top-5 left-0 whitespace-nowrap rounded bg-stone-900/80 px-1 text-[10px] text-white">{{ $dt->label }}</span>
+                            <span class="absolute -top-5 left-0 whitespace-nowrap rounded px-1 text-[10px] text-white" style="background-color: {{ $color }};">{{ $dt->stable_key ?: $dt->label }}</span>
                         </button>
                     @endforeach
                 </div>
@@ -40,7 +45,18 @@
         @endforeach
     </div>
 
-    @if ($session->detectedTables->isNotEmpty())
+    @if ($tables->isNotEmpty())
+        <div class="mt-4 flex flex-wrap gap-3 text-sm text-stone-700" data-table-legend>
+            @foreach ($tables as $dt)
+                <div class="inline-flex items-center gap-2" wire:key="legend-{{ $dt->id }}">
+                    <span class="inline-block h-3 w-3 rounded-sm" style="background-color: {{ $dt->color_hex }};" data-legend-color="{{ $dt->color_hex }}"></span>
+                    <span>{{ $dt->displayLabel() }}</span>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
+    @if ($tables->isNotEmpty())
         <section class="mt-8 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
             <div class="flex flex-wrap items-end justify-between gap-4">
                 <div>
@@ -50,9 +66,11 @@
                 <div class="flex flex-wrap gap-3">
                     <label class="text-sm">
                         <span class="text-stone-600">Tisch</span>
-                        <select wire:model.live="selectedTableId" class="ml-2 rounded-md border-stone-300 text-sm">
-                            @foreach ($session->detectedTables as $dt)
-                                <option value="{{ $dt->id }}">{{ $dt->label }} @if($dt->has_umbrella)(Schirm)@endif</option>
+                        <select wire:model.live="selectedTableId" class="ml-2 rounded-md border-stone-300 text-sm" data-table-select>
+                            @foreach ($tables as $dt)
+                                <option value="{{ $dt->id }}">
+                                    {{ $dt->displayLabel() }} @if($dt->has_umbrella)(Schirm)@endif
+                                </option>
                             @endforeach
                         </select>
                     </label>
@@ -65,11 +83,20 @@
 
             @if ($table)
                 <div class="mt-4 text-sm text-stone-600">
-                    Beobachtung: {{ $table->observed_condition ?? '–' }}
+                    <span class="mr-2 inline-block h-2.5 w-2.5 rounded-sm align-middle" style="background-color: {{ $table->color_hex }};"></span>
+                    {{ $table->displayLabel() }}
+                    · Beobachtungen: {{ $table->observations->count() }} Foto(s)
                     @if($table->has_umbrella)
                         · Schirm ≈ {{ $table->umbrella_height_m }} m hoch, Radius {{ $table->umbrella_radius_m }} m
                     @endif
                 </div>
+                @if (! empty($visibilityNotes))
+                    <ul class="mt-2 list-disc pl-5 text-sm text-amber-800">
+                        @foreach ($visibilityNotes as $note)
+                            <li>{{ $note }}</li>
+                        @endforeach
+                    </ul>
+                @endif
             @endif
 
             @if ($dayForecast)

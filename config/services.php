@@ -38,9 +38,9 @@ return [
     'xai' => [
         'key' => env('XAI_API_KEY'),
         'base_url' => env('XAI_BASE_URL', 'https://api.x.ai/v1'),
-        'model' => env('XAI_MODEL', 'grok-2-latest'),
-        'vision_model' => env('XAI_VISION_MODEL', 'grok-2-vision-latest'),
-        'timeout' => (int) env('XAI_TIMEOUT', 120),
+        'model' => env('XAI_MODEL', 'grok-4.6'),
+        'vision_model' => env('XAI_VISION_MODEL', 'grok-4.20-0309-non-reasoning'),
+        'timeout' => (int) env('XAI_TIMEOUT', 300),
     ],
 
     'open_meteo' => [

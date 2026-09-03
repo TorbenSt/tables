@@ -40,3 +40,10 @@ Route::get('/photo-sessions/create/gallery', PhotoSessionForm::class)->name('pho
 Route::get('/photo-sessions/create/camera', PhotoSessionCamera::class)->name('photo-sessions.camera');
 Route::get('/photo-sessions/{session}/camera', PhotoSessionCamera::class)->name('photo-sessions.camera.continue');
 Route::get('/photo-sessions/{session}', PhotoSessionShow::class)->name('photo-sessions.show');
+
+Route::get('/media/{path}', function (string $path) {
+    $path = str_replace('..', '', $path);
+    abort_unless(Illuminate\Support\Facades\Storage::disk('public')->exists($path), 404);
+
+    return Illuminate\Support\Facades\Storage::disk('public')->response($path);
+})->where('path', '.*')->name('media');

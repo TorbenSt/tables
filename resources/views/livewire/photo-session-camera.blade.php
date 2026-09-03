@@ -80,7 +80,7 @@
                 @forelse ($photos as $photo)
                     <li class="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2">
                         <span>
-                            {{ \Illuminate\Support\Str::of($photo->captured_at)->substr(0, 5) }} Uhr
+                            {{ $photo->capturedAtHm() }} Uhr
                             · {{ number_format((float) $photo->latitude, 5) }}, {{ number_format((float) $photo->longitude, 5) }}
                             · {{ $photo->bearing }}°
                         </span>

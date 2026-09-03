@@ -11,6 +11,8 @@ class DetectedTable extends Model
     protected $fillable = [
         'photo_session_id',
         'table_photo_id',
+        'stable_key',
+        'color_hex',
         'label',
         'bbox_x',
         'bbox_y',
@@ -47,8 +49,25 @@ class DetectedTable extends Model
         return $this->belongsTo(TablePhoto::class, 'table_photo_id');
     }
 
+    public function observations(): HasMany
+    {
+        return $this->hasMany(TableObservation::class);
+    }
+
     public function forecasts(): HasMany
     {
         return $this->hasMany(SunShadeForecast::class);
+    }
+
+    public function displayLabel(): string
+    {
+        $key = $this->stable_key ? $this->stable_key.' · ' : '';
+
+        return $key.($this->label ?: 'Außentisch');
+    }
+
+    public function observationOnPhoto(int $photoId): ?TableObservation
+    {
+        return $this->observations->firstWhere('table_photo_id', $photoId);
     }
 }

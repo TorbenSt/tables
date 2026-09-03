@@ -45,7 +45,7 @@
                     @foreach ($run->entries->sortBy('target_date') as $entry)
                         @php($w = $entry->weather_day ?? [])
                         <tr class="border-b border-stone-100 align-top">
-                            <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $entry->target_date->format('D d.m.Y') }}</td>
+                            <td class="px-4 py-3 whitespace-nowrap font-medium">{{ $entry->target_date->translatedFormat('D d.m.Y') }}</td>
                             <td class="px-4 py-3">
                                 #{{ $entry->matched_scenario_id }}
                                 <span class="block text-xs text-stone-500">{{ config('survey_scenarios.'.$entry->matched_scenario_id.'.title') }}</span>

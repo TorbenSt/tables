@@ -102,8 +102,18 @@
                         </div>
                         <div class="space-y-4">
                             <label class="block text-sm">
-                                <span class="text-stone-600">Uhrzeit</span>
-                                <input type="time" wire:model="meta.{{ $i }}.time" class="mt-1 w-full rounded-md border-stone-300 shadow-sm" required>
+                                <span class="text-stone-600">Uhrzeit (24h)</span>
+                                <input
+                                    type="text"
+                                    inputmode="numeric"
+                                    placeholder="14:30"
+                                    pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+                                    title="Format HH:MM, z. B. 14:30"
+                                    wire:model="meta.{{ $i }}.time"
+                                    class="mt-1 w-full rounded-md border-stone-300 shadow-sm"
+                                    lang="de-DE"
+                                    required
+                                >
                             </label>
                             <label class="flex items-center gap-2 text-sm">
                                 <input type="checkbox" wire:model="meta.{{ $i }}.umbrella_hint" class="rounded border-stone-300">

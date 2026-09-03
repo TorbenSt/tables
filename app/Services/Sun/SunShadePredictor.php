@@ -5,6 +5,7 @@ namespace App\Services\Sun;
 use App\Models\DetectedTable;
 use App\Models\PhotoSession;
 use App\Models\SunShadeForecast;
+use App\Models\TableObservation;
 use App\Models\TablePhoto;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -14,30 +15,26 @@ class SunShadePredictor
     public function __construct(private SunPositionService $sun) {}
 
     /**
-     * Build exposure profile from observations and generate forecasts for a year (monthly sample days).
-     *
      * @return Collection<int, SunShadeForecast>
      */
     public function generateForSession(PhotoSession $session): Collection
     {
-        $session->load(['photos', 'detectedTables']);
-        $lat = (float) ($session->photos->first()?->latitude ?? 52.52);
-        $lng = (float) ($session->photos->first()?->longitude ?? 13.405);
+        $session->load(['photos', 'detectedTables.observations.photo', 'venue']);
+        $lat = (float) ($session->photos->first()?->latitude ?? $session->viewpoint_latitude ?? 52.52);
+        $lng = (float) ($session->photos->first()?->longitude ?? $session->viewpoint_longitude ?? 13.405);
         $tz = $session->venue?->timezone ?? 'Europe/Berlin';
 
-        $profile = $this->buildExposureProfile($session);
         $created = collect();
 
         foreach ($session->detectedTables as $table) {
             $table->forecasts()->delete();
+            $profile = $this->buildExposureProfileForTable($session, $table);
 
             for ($month = 1; $month <= 12; $month++) {
                 $date = Carbon::create(null, $month, 15, 12, 0, 0, $tz);
-                $forecast = $this->forecastDay($table, $date, $lat, $lng, $profile);
-                $created->push($forecast);
+                $created->push($this->forecastDay($table, $date, $lat, $lng, $profile));
             }
 
-            // Also forecast the capture date itself for immediate demo
             $capture = Carbon::parse($session->capture_date->format('Y-m-d'), $tz)->startOfDay();
             if ($capture->day !== 15) {
                 $created->push($this->forecastDay($table, $capture, $lat, $lng, $profile));
@@ -52,30 +49,58 @@ class SunShadePredictor
      */
     public function buildExposureProfile(PhotoSession $session): array
     {
+        $session->loadMissing(['photos', 'detectedTables.observations.photo', 'venue']);
+
+        $merged = [
+            'sun_azimuths' => [],
+            'shade_azimuths' => [],
+            'bearings' => [],
+            'has_umbrella_bias' => false,
+        ];
+
+        foreach ($session->detectedTables as $table) {
+            $profile = $this->buildExposureProfileForTable($session, $table);
+            $merged['sun_azimuths'] = array_merge($merged['sun_azimuths'], $profile['sun_azimuths']);
+            $merged['shade_azimuths'] = array_merge($merged['shade_azimuths'], $profile['shade_azimuths']);
+            $merged['bearings'] = array_merge($merged['bearings'], $profile['bearings']);
+            $merged['has_umbrella_bias'] = $merged['has_umbrella_bias'] || $profile['has_umbrella_bias'];
+        }
+
+        if ($merged['sun_azimuths'] === [] && $merged['shade_azimuths'] === []) {
+            return $this->inferProfileFromPhotos($session);
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @return array{sun_azimuths: array<int, float>, shade_azimuths: array<int, float>, bearings: array<int, float>, has_umbrella_bias: bool}
+     */
+    public function buildExposureProfileForTable(PhotoSession $session, DetectedTable $table): array
+    {
         $sunAzimuths = [];
         $shadeAzimuths = [];
         $bearings = [];
-        $hasUmbrellaBias = false;
         $tz = $session->venue?->timezone ?? 'Europe/Berlin';
+        $hasUmbrellaBias = (bool) $table->has_umbrella;
 
-        foreach ($session->detectedTables as $table) {
-            if ($table->has_umbrella) {
-                $hasUmbrellaBias = true;
-            }
-            /** @var TablePhoto|null $photo */
-            $photo = $table->photo ?? $session->photos->firstWhere('id', $table->table_photo_id);
-            if (! $photo) {
+        $observations = $table->relationLoaded('observations')
+            ? $table->observations
+            : $table->observations()->with('photo')->get();
+
+        foreach ($observations as $observation) {
+            /** @var TableObservation $observation */
+            $photo = $observation->photo;
+            if (! $photo instanceof TablePhoto) {
                 continue;
             }
             $bearings[] = (float) $photo->bearing;
-
             $dt = Carbon::parse(
                 $session->capture_date->format('Y-m-d').' '.$photo->captured_at,
                 $tz
             );
             $pos = $this->sun->position((float) $photo->latitude, (float) $photo->longitude, $dt);
-
-            $condition = $table->observed_condition ?? 'unknown';
+            $condition = $observation->observed_condition ?? 'unknown';
             if (in_array($condition, ['sun', 'mixed'], true)) {
                 $sunAzimuths[] = $pos['azimuth'];
             }
@@ -84,28 +109,14 @@ class SunShadePredictor
             }
         }
 
-        // If vision gave no conditions, infer from relative sun vs bearing (facing sun ≈ sunlit terrace)
         if ($sunAzimuths === [] && $shadeAzimuths === []) {
-            foreach ($session->photos as $photo) {
-                $bearings[] = (float) $photo->bearing;
-                $dt = Carbon::parse(
-                    $session->capture_date->format('Y-m-d').' '.$photo->captured_at,
-                    $tz
-                );
-                $pos = $this->sun->position((float) $photo->latitude, (float) $photo->longitude, $dt);
-                $delta = abs($this->angleDiff($pos['azimuth'], (float) $photo->bearing));
-                if ($delta < 70 && $pos['elevation'] > 10) {
-                    $sunAzimuths[] = $pos['azimuth'];
-                } else {
-                    $shadeAzimuths[] = $pos['azimuth'];
-                }
-            }
+            return $this->inferProfileFromPhotos($session, $hasUmbrellaBias);
         }
 
         return [
             'sun_azimuths' => $sunAzimuths,
             'shade_azimuths' => $shadeAzimuths,
-            'bearings' => $bearings,
+            'bearings' => $bearings ?: $session->photos->map(fn ($p) => (float) $p->bearing)->all(),
             'has_umbrella_bias' => $hasUmbrellaBias,
         ];
     }
@@ -150,7 +161,6 @@ class SunShadePredictor
             if ($table->has_umbrella || $profile['has_umbrella_bias']) {
                 $radius = (float) ($table->umbrella_radius_m ?: 1.5);
                 $height = (float) ($table->umbrella_height_m ?: 2.2);
-                // Simplified: when sun is high, umbrella covers more; low sun casts long shadows past table
                 $coverFactor = $elevation > 0 ? min(1.0, ($height / max(0.1, tan(deg2rad($elevation)))) / max(0.5, $radius * 2)) : 1.0;
                 if ($isSun && $elevation > 25 && $coverFactor < 1.2) {
                     $isSun = false;
@@ -194,6 +204,39 @@ class SunShadePredictor
     }
 
     /**
+     * @return array{sun_azimuths: array<int, float>, shade_azimuths: array<int, float>, bearings: array<int, float>, has_umbrella_bias: bool}
+     */
+    private function inferProfileFromPhotos(PhotoSession $session, bool $hasUmbrellaBias = false): array
+    {
+        $sunAzimuths = [];
+        $shadeAzimuths = [];
+        $bearings = [];
+        $tz = $session->venue?->timezone ?? 'Europe/Berlin';
+
+        foreach ($session->photos as $photo) {
+            $bearings[] = (float) $photo->bearing;
+            $dt = Carbon::parse(
+                $session->capture_date->format('Y-m-d').' '.$photo->captured_at,
+                $tz
+            );
+            $pos = $this->sun->position((float) $photo->latitude, (float) $photo->longitude, $dt);
+            $delta = abs($this->angleDiff($pos['azimuth'], (float) $photo->bearing));
+            if ($delta < 70 && $pos['elevation'] > 10) {
+                $sunAzimuths[] = $pos['azimuth'];
+            } else {
+                $shadeAzimuths[] = $pos['azimuth'];
+            }
+        }
+
+        return [
+            'sun_azimuths' => $sunAzimuths,
+            'shade_azimuths' => $shadeAzimuths,
+            'bearings' => $bearings,
+            'has_umbrella_bias' => $hasUmbrellaBias,
+        ];
+    }
+
+    /**
      * @param  array<int, float>  $angles
      */
     private function circularMean(array $angles): float
@@ -212,8 +255,6 @@ class SunShadePredictor
 
     private function angleDiff(float $a, float $b): float
     {
-        $d = fmod($a - $b + 540, 360) - 180;
-
-        return $d;
+        return fmod($a - $b + 540, 360) - 180;
     }
 }

@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 class TablePhoto extends Model
 {
@@ -35,6 +34,11 @@ class TablePhoto extends Model
         return $this->belongsTo(PhotoSession::class, 'photo_session_id');
     }
 
+    public function observations(): HasMany
+    {
+        return $this->hasMany(TableObservation::class);
+    }
+
     public function detectedTables(): HasMany
     {
         return $this->hasMany(DetectedTable::class);
@@ -42,6 +46,12 @@ class TablePhoto extends Model
 
     public function url(): string
     {
-        return Storage::disk('public')->url($this->path);
+        return route('media', ['path' => $this->path], absolute: false);
+    }
+
+    /** Uhrzeit im 24h-Format, z. B. 14:30 */
+    public function capturedAtHm(): string
+    {
+        return substr((string) $this->captured_at, 0, 5);
     }
 }
