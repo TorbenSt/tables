@@ -103,3 +103,9 @@ Module teilen nur das `Venue`-Modell; keine fachliche Kopplung.
 - `app/Services/Decisions/` – Matching & Decision Engine
 - `app/Services/Sun/` – Vision-Analyse & Sonnenprognose
 - `app/Livewire/` – UI-Komponenten
+
+## Lizenz
+
+**Proprietär – alle Rechte vorbehalten.** Siehe [LICENSE](LICENSE).
+
+Es handelt sich nicht um Open Source. Nutzung, Kopie, Weitergabe und der Aufbau konkurrierender Produkte auf Basis dieses Codes sind ohne schriftliche Erlaubnis nicht gestattet. Drittanbieter-Pakete (Laravel, Livewire, …) behalten ihre eigenen Lizenzen.

@@ -1,10 +1,10 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "torbenst/tables",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "Gastro table planning PoC: weather-based reservation releases and photo-based sun/shade detection.",
+    "keywords": ["gastro", "reservations", "tables", "weather", "sun"],
+    "license": "proprietary",
     "require": {
         "php": "^8.2",
         "laravel/framework": "^12.0",

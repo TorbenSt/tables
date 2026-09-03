@@ -1,0 +1,51 @@
+PROPRIETARY SOFTWARE LICENSE
+All Rights Reserved
+
+Copyright (c) 2026 Torben Steinhauer
+
+This repository and all original software, source code, documentation,
+designs, configurations, and other materials contained herein
+(collectively, the "Software") are the exclusive property of
+Torben Steinhauer ("Owner").
+
+NO LICENSE IS GRANTED.
+
+Except as required by applicable law or with the Owner's prior written
+permission, you may not:
+
+1. use, copy, modify, merge, publish, distribute, sublicense, sell,
+   lease, or otherwise exploit the Software or any part of it;
+2. create derivative works based on the Software;
+3. reverse engineer, decompile, or attempt to extract source from any
+   non-source form of the Software (except to the limited extent such
+   restriction is prohibited by law);
+4. use the Software, or knowledge obtained from it, to develop,
+   operate, market, or commercialize a competing product or service;
+5. remove or alter any proprietary notices.
+
+VIEWING THIS PUBLIC REPOSITORY DOES NOT GRANT ANY RIGHTS.
+
+Access to this repository (for example via GitHub) is for the Owner's
+own development, backup, and collaboration purposes only. It does not
+constitute an open-source release, a public invitation to use the
+Software, or a waiver of any rights.
+
+THIRD-PARTY COMPONENTS
+
+Third-party libraries and frameworks included via Composer, npm, or
+similar package managers remain subject to their own licenses
+(for example Laravel, Livewire, Tailwind CSS). This proprietary license
+applies only to the original project materials authored by the Owner.
+
+NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE SOFTWARE OR ITS USE (OR INABILITY TO USE IT).
+
+CONTACT
+
+For licensing inquiries or written permission, contact the Owner via
+the contact information associated with this repository.
