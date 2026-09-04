@@ -52,7 +52,10 @@ class MapSiteSunTest extends TestCase
             ->assertSet('longitude', 13.4051)
             ->call('addTable', 52.5202, 13.4052)
             ->assertCount('tables', 1)
-            ->assertSee('T1');
+            ->assertSee('T1')
+            ->assertSee('Sonnenschirm')
+            ->assertDontSee('Ohne Schirm')
+            ->assertSet('tables.0.has_umbrella', false);
     }
 
     #[Test]

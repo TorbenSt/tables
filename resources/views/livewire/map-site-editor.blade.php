@@ -69,9 +69,15 @@
                     <span class="inline-block h-3 w-3 rounded-full" style="background-color: {{ $t['color_hex'] }}"></span>
                     <span class="font-medium">{{ $t['stable_key'] }}</span>
                     <span class="text-stone-500">{{ $t['lat'] }}, {{ $t['lng'] }}</span>
-                    <button type="button" wire:click="toggleUmbrella({{ $i }})" class="rounded-md border border-stone-300 px-2 py-1 text-xs hover:bg-stone-50">
-                        {{ $t['has_umbrella'] ? 'Schirm an' : 'Ohne Schirm' }}
-                    </button>
+                    <label class="inline-flex cursor-pointer items-center gap-1.5 text-xs text-stone-700">
+                        <input
+                            type="checkbox"
+                            wire:click="toggleUmbrella({{ $i }})"
+                            @checked($t['has_umbrella'])
+                            class="rounded border-stone-300"
+                        >
+                        Sonnenschirm
+                    </label>
                     <button type="button" wire:click="removeTable({{ $i }})" class="ml-auto text-xs text-red-700 hover:underline">Entfernen</button>
                 </li>
             @endforeach
