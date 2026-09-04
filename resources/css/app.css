@@ -11,6 +11,10 @@
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
+#table-sun-map-root.leaflet-container {
+    font-family: inherit;
+}
+
 @layer base {
     input[type='text'],
     input[type='date'],

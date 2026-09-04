@@ -25,7 +25,7 @@
                     <a href="{{ route('venues.decisions', $venue) }}" class="rounded-md px-3 py-1.5 hover:bg-stone-100 {{ request()->routeIs('venues.decisions') ? 'bg-stone-100 font-medium' : '' }}">Freigaben</a>
                     <a href="{{ route('venues.timeline', $venue) }}" class="rounded-md px-3 py-1.5 hover:bg-stone-100 {{ request()->routeIs('venues.timeline') ? 'bg-stone-100 font-medium' : '' }}">Timeline</a>
                 @endif
-                <a href="{{ route('photo-sessions.create') }}" class="rounded-md px-3 py-1.5 hover:bg-stone-100 {{ request()->routeIs('photo-sessions*') ? 'bg-stone-100 font-medium' : '' }}">Tisch-Fotos</a>
+                <a href="{{ route('map-sites.create') }}" class="rounded-md px-3 py-1.5 hover:bg-stone-100 {{ request()->routeIs('map-sites*') ? 'bg-stone-100 font-medium' : '' }}">Tisch-Sonne</a>
             </nav>
         </div>
     </header>
@@ -41,7 +41,7 @@
     </main>
 
     <footer class="mx-auto max-w-6xl px-4 pb-10 text-xs text-stone-500">
-        PoC: Model 1 (Wetter/Umfrage) und Model 2 (Fotos/Sonne) arbeiten getrennt. Wetter: Open-Meteo. KI: xAI Grok.
+        PoC: Model 1 (Wetter/Umfrage) und Model 2 (Karte/Sonne) arbeiten getrennt. Wetter: Open-Meteo. Gebäude: OpenStreetMap.
     </footer>
 
     @livewireScripts

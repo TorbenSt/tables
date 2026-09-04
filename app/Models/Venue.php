@@ -40,6 +40,11 @@ class Venue extends Model
         return $this->hasMany(PhotoSession::class);
     }
 
+    public function mapSites(): HasMany
+    {
+        return $this->hasMany(MapSite::class);
+    }
+
     public function capacityFor(string $category): int
     {
         return match ($category) {

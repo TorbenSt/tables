@@ -48,4 +48,25 @@ return [
         'timezone' => env('OPEN_METEO_TIMEZONE', 'Europe/Berlin'),
     ],
 
+    'nominatim' => [
+        'base_url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
+        'user_agent' => env('NOMINATIM_USER_AGENT', 'TablesPoC/1.0 (https://localhost)'),
+    ],
+
+    'overpass' => [
+        'url' => env('OVERPASS_URL', 'https://overpass-api.de/api/interpreter'),
+        'fallbacks' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'OVERPASS_FALLBACKS',
+            'https://overpass.kumi.systems/api/interpreter'
+        ))))),
+        'radius_m' => (int) env('OVERPASS_RADIUS_M', 80),
+        'timeout' => (int) env('OVERPASS_TIMEOUT', 18),
+    ],
+
+    'map_imagery' => [
+        'url' => env('MAP_IMAGERY_URL', 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+        'attribution' => env('MAP_IMAGERY_ATTR', 'Tiles © Esri — Esri, Maxar, Earthstar Geographics'),
+        'max_zoom' => (int) env('MAP_IMAGERY_MAX_ZOOM', 19),
+    ],
+
 ];
